@@ -4,10 +4,19 @@
 use usb as _; // global logger + panicking-behavior + memory layout
 
 use cortex_m_rt::entry;
+use defmt::{info, Format};
 use nrf52840_hal::clocks::Clocks;
 use nrf52840_hal::usbd::{UsbPeripheral, Usbd};
+use postcard::from_bytes_cobs;
+use serde::Deserialize;
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
+
+#[derive(Debug, Deserialize, Format)]
+enum Command {
+    On,
+    Off,
+}
 
 #[entry]
 fn main() -> ! {
@@ -31,28 +40,13 @@ fn main() -> ! {
             continue;
         }
 
-        let mut buf = [0u8; 64];
+        let mut buf = [0u8; 32];
 
         match serial.read(&mut buf) {
             Ok(count) if count > 0 => {
-                // Echo back in upper case
-                for c in buf[0..count].iter_mut() {
-                    if 0x61 <= *c && *c <= 0x7a {
-                        *c &= !0x20;
-                    }
-                }
-
-                if let Ok(str) = core::str::from_utf8(&buf[0..count]) {
-                    defmt::info!("{}", str);
-                }
-
-                let mut write_offset = 0;
-                while write_offset < count {
-                    match serial.write(&buf[write_offset..count]) {
-                        Ok(len) if len > 0 => {
-                            write_offset += len;
-                        }
-                        _ => {}
+                if let Ok(command) = from_bytes_cobs(&mut buf) {
+                    if let Command::On | Command::Off = command {
+                        info!("received {}", command);
                     }
                 }
             }
