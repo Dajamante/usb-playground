@@ -28,5 +28,5 @@ jobs:
       run: cd ./firmware/ && cargo install flip-link
       
     - name: Build
-      run: cd ./firmware/ && cargo build --verbose
+      run: cd ./firmware/ && cargo +nightly build --target=thumbv7em-none-eabihf --verbose
 
