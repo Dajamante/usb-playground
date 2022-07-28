@@ -28,5 +28,5 @@ jobs:
       run: cd ./firmware/ && cargo install flip-link
       
     - name: Build
-      run: --manifest-path ./firmware/Cargo.toml --target=thumbv7em-none-eabihf cargo build --verbose
+      run: cd ./firmware/ && cargo build --verbose
 
