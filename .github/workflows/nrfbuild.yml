@@ -23,10 +23,10 @@ jobs:
       
     - name: Add targets to toolchain nightly
       run: cd ./firmware && rustup target add thumbv7em-none-eabihf --toolchain=nightly
-      
+    
     - name: Install flip-link
       run: cd ./firmware/ && cargo install flip-link
       
     - name: Build
-      run: --manifest-path ./firmware/Cargo.toml --target=thumbv7em-none-eabihf cargo build --verbose
+      run: cd ./firmware/ && cargo +nightly build --target=thumbv7em-none-eabihf --verbose
 
