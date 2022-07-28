@@ -19,13 +19,13 @@ jobs:
       uses: actions/checkout@v3
     
     - name: Install nightly
-      run: cd firmware/ && rustup install nightly
+      run: cd ./firmware/ && rustup install nightly
       
     - name: Add targets to toolchain nightly
-      run: cd firmware && rustup target add thumbv7em-none-eabihf --toolchain=nightly
+      run: cd ./firmware && rustup target add thumbv7em-none-eabihf --toolchain=nightly
       
     - name: Install flip-link
-      run: cd firmware/ && cargo install flip-link
+      run: cd ./firmware/ && cargo install flip-link
       
     - name: Build
       run: --manifest-path ./firmware/Cargo.toml --target=thumbv7em-none-eabihf cargo build --verbose
