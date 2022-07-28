@@ -1,4 +1,13 @@
 use std::time::{Duration, Instant};
+
+use postcard::to_slice_cobs;
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+enum Command {
+    On,
+    Off,
+}
 fn main() -> Result<(), ()> {
     let mut dport = None;
 
@@ -29,13 +38,22 @@ fn main() -> Result<(), ()> {
         .map_err(drop)?;
 
     let mut last_send = Instant::now();
+    let mut cmd = Command::On;
+    let mut is_on = false;
 
     let mut buf = [0; 64];
     loop {
         if last_send.elapsed() >= Duration::from_secs(1) {
-            let str = "hello!\n";
-            print!("TX: {}", str);
-            port.write_all(str.as_bytes()).unwrap();
+            if is_on {
+                cmd = Command::Off;
+                is_on = false;
+            } else {
+                cmd = Command::On;
+                is_on = true;
+            }
+            let data = to_slice_cobs(&cmd, &mut buf).unwrap();
+
+            port.write_all(data).unwrap();
 
             last_send = Instant::now();
         }
