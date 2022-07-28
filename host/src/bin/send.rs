@@ -1,5 +1,4 @@
 use std::time::{Duration, Instant};
-
 fn main() -> Result<(), ()> {
     let mut dport = None;
 
@@ -9,7 +8,8 @@ fn main() -> Result<(), ()> {
             ..
         }) = &port.port_type
         {
-            if sn.as_str() == "TESTssata" {
+            // Serial number must be same as in the firmware
+            if sn.as_str() == "InOurEyes" {
                 dport = Some(port.clone());
                 break;
             }
@@ -19,7 +19,7 @@ fn main() -> Result<(), ()> {
     let dport = if let Some(port) = dport {
         port
     } else {
-        eprintln!("Error: No `Pretty hal machine` connected!");
+        eprintln!("Error: No USB connected!");
         return Ok(());
     };
 
@@ -30,6 +30,7 @@ fn main() -> Result<(), ()> {
 
     let mut last_send = Instant::now();
 
+    let mut buf = [0; 64];
     loop {
         if last_send.elapsed() >= Duration::from_secs(1) {
             let str = "hello!\n";
@@ -37,6 +38,11 @@ fn main() -> Result<(), ()> {
             port.write_all(str.as_bytes()).unwrap();
 
             last_send = Instant::now();
+        }
+
+        // 99.9999% error
+        if let Ok(count) = port.read(&mut buf) {
+            println!("{:?}", core::str::from_utf8(&buf[..count]));
         }
     }
 }
