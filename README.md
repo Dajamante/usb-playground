@@ -23,3 +23,21 @@ PS: Words of the song are from Kelly Clarkson "Born to die".
 [env]
 DEFMT_LOG="info"
 ```
+
+### Phase 2:
+
+Works with a host program
+1. Do `cd host` and `cargo run --bin send`
+2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`*
+
+The host is sending a serialized command to the firmware.
+
+
+
+\* that info is in the `.cargo/config.toml` file but if it does not publish any letter, use explicit logging.
+
+[.cargo/config.toml]
+```toml
+[env]
+DEFMT_LOG="info"
+```
