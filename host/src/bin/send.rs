@@ -1,4 +1,34 @@
+use postcard::to_slice_cobs;
+use serde::Serialize;
+use std::io;
 use std::time::{Duration, Instant};
+
+#[derive(Debug, Serialize)]
+enum Command {
+    On,
+    Off,
+    Temperature,
+}
+
+pub enum MyError {
+    Bad,
+}
+impl TryFrom<&str> for Command {
+    type Error = MyError;
+
+    fn try_from(s: &str) -> Result<Command, MyError> {
+        match s {
+            "on" => Ok(Command::On),
+            "off" => Ok(Command::Off),
+            "temp" => Ok(Command::Temperature),
+            _ => {
+                println!("Unknown command");
+                Err(MyError::Bad)
+            }
+        }
+    }
+}
+
 fn main() -> Result<(), ()> {
     let mut dport = None;
 
@@ -31,18 +61,30 @@ fn main() -> Result<(), ()> {
     let mut last_send = Instant::now();
 
     let mut buf = [0; 64];
+
     loop {
-        if last_send.elapsed() >= Duration::from_secs(1) {
-            let str = "hello!\n";
-            print!("TX: {}", str);
-            port.write_all(str.as_bytes()).unwrap();
+        // if last_send.elapsed() >= Duration::from_secs(1) {
+        //     let str = "hello!\n";
+        //     print!("TX: {}", str);
+        //     port.write_all(str.as_bytes()).unwrap();
 
-            last_send = Instant::now();
-        }
+        //     last_send = Instant::now();
+        // }
 
-        // 99.9999% error
-        if let Ok(count) = port.read(&mut buf) {
-            println!("{:?}", core::str::from_utf8(&buf[..count]));
+        // // 99.9999% error
+        // if let Ok(count) = port.read(&mut buf) {
+        //     println!("{:?}", core::str::from_utf8(&buf[..count]));
+        // }
+        let mut input = String::new();
+        // That returns the number of bytes
+        if let Ok(_) = io::stdin().read_line(&mut input) {
+            if let Ok(command) = Command::try_from(input.trim()) {
+                println!("Command::{:?}", command);
+
+                if let Ok(data) = to_slice_cobs(&command, &mut buf) {
+                    port.write_all(data).unwrap();
+                }
+            }
         }
     }
 }

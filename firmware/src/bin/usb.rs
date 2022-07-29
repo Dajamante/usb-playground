@@ -4,16 +4,33 @@
 use usb as _; // global logger + panicking-behavior + memory layout
 
 use cortex_m_rt::entry;
-use nrf52840_hal::clocks::Clocks;
-use nrf52840_hal::usbd::{UsbPeripheral, Usbd};
+use defmt::info;
+use nrf52840_hal::{
+    clocks::Clocks,
+    gpio::Level,
+    prelude::OutputPin,
+    temp::Temp,
+    usbd::{UsbPeripheral, Usbd},
+};
+use postcard::from_bytes_cobs;
+use serde::Deserialize;
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
-
+#[derive(Debug, defmt::Format, Deserialize)]
+enum Command {
+    On,
+    Off,
+    Temperature,
+}
 #[entry]
 fn main() -> ! {
     let periph = nrf52840_hal::pac::Peripherals::take().unwrap();
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
+    let mut port0 = nrf52840_hal::gpio::p0::Parts::new(periph.P0);
+    let mut led = port0.p0_13.into_push_pull_output(Level::High).degrade();
+
+    let mut temp_sensor = Temp::new(periph.TEMP);
 
     let usb_bus = Usbd::new(UsbPeripheral::new(periph.USBD, &clocks));
     let mut serial = SerialPort::new(&usb_bus);
@@ -35,25 +52,17 @@ fn main() -> ! {
 
         match serial.read(&mut buf) {
             Ok(count) if count > 0 => {
-                // Echo back in upper case
-                for c in buf[0..count].iter_mut() {
-                    if 0x61 <= *c && *c <= 0x7a {
-                        *c &= !0x20;
-                    }
-                }
-
-                if let Ok(str) = core::str::from_utf8(&buf[0..count]) {
-                    defmt::info!("{}", str);
-                }
-
-                let mut write_offset = 0;
-                while write_offset < count {
-                    match serial.write(&buf[write_offset..count]) {
-                        Ok(len) if len > 0 => {
-                            write_offset += len;
+                if let Ok(command) = from_bytes_cobs(&mut buf) {
+                    info!("received {}", command);
+                    match command {
+                        Command::On => led.set_low(),
+                        Command::Off => led.set_high(),
+                        Command::Temperature => {
+                            let temp: i32 = temp_sensor.measure().to_num();
+                            defmt::info!("processor temp is {}°C", temp);
+                            Ok({})
                         }
-                        _ => {}
-                    }
+                    };
                 }
             }
             _ => {}
