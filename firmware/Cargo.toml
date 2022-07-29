@@ -21,6 +21,12 @@ panic-probe = { version = "0.3.0", features = ["print-defmt"] }
 nrf52840-hal = "0.14.0"
 usb-device = "0.2.7"
 usbd-serial = "0.1.0"
+postcard = "1.0.1"
+
+[dependencies.serde]
+default-features = false
+features = ["derive"]
+version = "1.0.127"
 
 [dev-dependencies]
 defmt-test = "0.3.0"
