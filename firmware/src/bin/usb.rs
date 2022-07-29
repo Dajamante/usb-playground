@@ -6,7 +6,10 @@ use usb as _; // global logger + panicking-behavior + memory layout
 use cortex_m_rt::entry;
 use defmt::{info, Format};
 use nrf52840_hal::clocks::Clocks;
+use nrf52840_hal::gpio::Level;
+use nrf52840_hal::prelude::OutputPin;
 use nrf52840_hal::usbd::{UsbPeripheral, Usbd};
+
 use postcard::from_bytes_cobs;
 use serde::Deserialize;
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
@@ -27,6 +30,8 @@ fn main() -> ! {
     let usb_bus = Usbd::new(UsbPeripheral::new(periph.USBD, &clocks));
     let mut serial = SerialPort::new(&usb_bus);
 
+    let mut port0 = nrf52840_hal::gpio::p0::Parts::new(periph.P0);
+    let mut led = port0.p0_13.into_push_pull_output(Level::High);
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
         .manufacturer("AllTheTears")
         .product("FromTheDust")
@@ -45,8 +50,14 @@ fn main() -> ! {
         match serial.read(&mut buf) {
             Ok(count) if count > 0 => {
                 if let Ok(command) = from_bytes_cobs(&mut buf) {
-                    if let Command::On | Command::Off = command {
-                        info!("received {}", command);
+                    info!("received {}", command);
+                    match command {
+                        Command::On => {
+                            led.set_low();
+                        }
+                        Command::Off => {
+                            led.set_high();
+                        }
                     }
                 }
             }

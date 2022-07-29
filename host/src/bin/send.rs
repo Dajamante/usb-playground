@@ -43,7 +43,7 @@ fn main() -> Result<(), ()> {
 
     let mut buf = [0; 64];
     loop {
-        if last_send.elapsed() >= Duration::from_secs(1) {
+        if last_send.elapsed() >= Duration::from_secs(3) {
             if is_on {
                 cmd = Command::Off;
                 is_on = false;
