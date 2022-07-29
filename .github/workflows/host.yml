@@ -17,5 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
+    - name: Install obscure libraries
+      run: cd ./host/ && sudo apt-get update && sudo apt-get install libudev-dev libusb-1.0-0-dev
+    
     - name: Build
       run: cd ./host/ && cargo build --verbose
