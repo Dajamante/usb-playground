@@ -28,16 +28,18 @@ DEFMT_LOG="info"
 
 Works with a host program
 1. Do `cd host` and `cargo run --bin send`
-2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`*
+2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`
 
 The host is sending a serialized command to the firmware.
 
 
 
-\* that info is in the `.cargo/config.toml` file but if it does not publish any letter, use explicit logging.
+### Phase 3: on/off/temp
 
-[.cargo/config.toml]
-```toml
-[env]
-DEFMT_LOG="info"
-```
+Works with a host program, turns on the light on and off and gives temperature
+1. Do `cd host` and `cargo run --bin send`
+2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`
+3. Write `on`, `off` or `temp` to the `host` to see the bord turning on the led, or turning off the led, or giving the temperature.
+
+Error handling is left as an exercise ... to myself for later.
+
