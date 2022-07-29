@@ -12,8 +12,8 @@ use nrf52840_hal::{
     temp::Temp,
     usbd::{UsbPeripheral, Usbd},
 };
-use postcard::from_bytes_cobs;
-use serde::Deserialize;
+use postcard::{from_bytes_cobs, to_slice_cobs};
+use serde::{Deserialize, Serialize};
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 #[derive(Debug, defmt::Format, Deserialize)]
@@ -22,6 +22,14 @@ enum Command {
     Off,
     Temperature,
 }
+
+#[derive(Debug, Serialize)]
+enum Response {
+    Ack,
+    Nack,
+    Temperature(f32),
+}
+
 #[entry]
 fn main() -> ! {
     let periph = nrf52840_hal::pac::Peripherals::take().unwrap();
@@ -54,15 +62,24 @@ fn main() -> ! {
             Ok(count) if count > 0 => {
                 if let Ok(command) = from_bytes_cobs(&mut buf) {
                     info!("received {}", command);
+                    let mut response = Response::Nack;
                     match command {
-                        Command::On => led.set_low(),
-                        Command::Off => led.set_high(),
-                        Command::Temperature => {
-                            let temp: i32 = temp_sensor.measure().to_num();
-                            defmt::info!("processor temp is {}°C", temp);
-                            Ok({})
+                        Command::On => {
+                            response = Response::Ack;
+                            led.set_low();
                         }
-                    };
+                        Command::Off => {
+                            response = Response::Ack;
+                            led.set_high();
+                        }
+                        Command::Temperature => {
+                            let temp: f32 = temp_sensor.measure().to_num();
+                            defmt::info!("processor temp is {}°C", temp);
+                            response = Response::Temperature(temp);
+                        }
+                    }
+                    let data = to_slice_cobs(&response, &mut buf).unwrap();
+                    serial.write(data).unwrap();
                 }
             }
             _ => {}

@@ -1,5 +1,5 @@
-use postcard::to_slice_cobs;
-use serde::Serialize;
+use postcard::{from_bytes_cobs, to_slice_cobs};
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -10,6 +10,12 @@ enum Command {
     Temperature,
 }
 
+#[derive(Debug, Deserialize)]
+enum Response {
+    Ack,
+    Nack,
+    Temperature(f32),
+}
 pub enum MyError {
     Bad,
 }
@@ -84,6 +90,12 @@ fn main() -> Result<(), ()> {
                 if let Ok(data) = to_slice_cobs(&command, &mut buf) {
                     port.write_all(data).unwrap();
                 }
+            }
+        }
+
+        if let Ok(count) = port.read(&mut buf) {
+            if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
+                println!("{:?}", response);
             }
         }
     }
