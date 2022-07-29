@@ -9,7 +9,6 @@ use nrf52840_hal::clocks::Clocks;
 use nrf52840_hal::gpio::Level;
 use nrf52840_hal::prelude::OutputPin;
 use nrf52840_hal::usbd::{UsbPeripheral, Usbd};
-
 use postcard::from_bytes_cobs;
 use serde::Deserialize;
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
