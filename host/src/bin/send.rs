@@ -1,7 +1,7 @@
 use postcard::{from_bytes_cobs, to_slice_cobs};
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug, Serialize)]
 enum Command {
@@ -16,20 +16,21 @@ enum Response {
     Nack,
     Temperature(f32),
 }
-pub enum MyError {
-    Bad,
+#[derive(Debug)]
+pub enum USBError {
+    BadCommand,
 }
 impl TryFrom<&str> for Command {
-    type Error = MyError;
+    type Error = USBError;
 
-    fn try_from(s: &str) -> Result<Command, MyError> {
+    fn try_from(s: &str) -> Result<Command, USBError> {
         match s {
             "on" => Ok(Command::On),
             "off" => Ok(Command::Off),
             "temp" => Ok(Command::Temperature),
             _ => {
                 println!("Unknown command");
-                Err(MyError::Bad)
+                Err(USBError::BadCommand)
             }
         }
     }
@@ -64,32 +65,21 @@ fn main() -> Result<(), ()> {
         .open()
         .map_err(drop)?;
 
-    let mut last_send = Instant::now();
-
     let mut buf = [0; 64];
+    println!("Possible instructions: \n on \n off \n temp");
 
     loop {
-        // if last_send.elapsed() >= Duration::from_secs(1) {
-        //     let str = "hello!\n";
-        //     print!("TX: {}", str);
-        //     port.write_all(str.as_bytes()).unwrap();
-
-        //     last_send = Instant::now();
-        // }
-
-        // // 99.9999% error
-        // if let Ok(count) = port.read(&mut buf) {
-        //     println!("{:?}", core::str::from_utf8(&buf[..count]));
-        // }
         let mut input = String::new();
         // That returns the number of bytes
         if let Ok(_) = io::stdin().read_line(&mut input) {
-            if let Ok(command) = Command::try_from(input.trim()) {
-                println!("Command::{:?}", command);
-
-                if let Ok(data) = to_slice_cobs(&command, &mut buf) {
-                    port.write_all(data).unwrap();
+            match Command::try_from(input.trim()) {
+                Ok(command) => {
+                    println!("Command::{:?}", command);
+                    if let Ok(data) = to_slice_cobs(&command, &mut buf) {
+                        port.write_all(data).unwrap();
+                    }
                 }
+                Err(e) => eprintln!("Command::{:?}", e),
             }
         }
 
