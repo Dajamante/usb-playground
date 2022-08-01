@@ -35,7 +35,7 @@ fn main() -> ! {
     let periph = nrf52840_hal::pac::Peripherals::take().unwrap();
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
-    let mut port0 = nrf52840_hal::gpio::p0::Parts::new(periph.P0);
+    let port0 = nrf52840_hal::gpio::p0::Parts::new(periph.P0);
     let mut led = port0.p0_13.into_push_pull_output(Level::High).degrade();
 
     let mut temp_sensor = Temp::new(periph.TEMP);
@@ -44,6 +44,9 @@ fn main() -> ! {
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
+        // fun fact:
+        // writing `ls -l /dev/serial/by-id` will give the tty port and the identification
+        // usb-AllTheTears_FromTheDust_InOurEyes-if00 -> ../../ttyACM1
         .manufacturer("AllTheTears")
         .product("FromTheDust")
         .serial_number("InOurEyes")
