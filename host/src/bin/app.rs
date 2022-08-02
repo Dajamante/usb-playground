@@ -26,23 +26,33 @@ fn main() {
     dioxus::desktop::launch(app);
 }
 
-fn get_temp(buf: &mut [u8; 64], port: &mut Box<dyn SerialPort>) {
+fn get_temp(port: &mut Box<dyn SerialPort>) -> Result<f32, ()> {
+    let mut buf = [0; 64];
+
     // That returns the number of bytes
     let command = Command::Temperature;
-    if let Ok(data) = to_slice_cobs(&command, buf) {
+    if let Ok(data) = to_slice_cobs(&command, &mut buf) {
         port.write_all(data).unwrap();
     }
-    if let Ok(count) = port.read(buf) {
+
+    if let Ok(count) = port.read(&mut buf) {
         if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
-            println!("{:?}", response);
+            match response {
+                Response::Temperature(t) => Ok(t),
+                _ => Err(()),
+            }
+        } else {
+            Err(())
         }
+    } else {
+        Err(())
     }
 }
 
 fn app(cx: Scope) -> Element {
     let mut port = init()?;
-    let mut buf = [0; 64];
-
+    // smart pointer Rc<T>
+    let mut temp = use_state(&cx, || get_temp(&mut port).unwrap());
     cx.render(rsx! (
         div {
             background_color: "orange",
@@ -50,9 +60,12 @@ fn app(cx: Scope) -> Element {
             p     {"Click on the buttons to have information from the board."}
         },
         button {
-            onclick: move |_evt| get_temp(&mut buf,&mut port),
+            onclick: move |_| temp.modify(|_| get_temp(&mut port).unwrap()),
             "Temperature!"
         },
+        div {
+            p  { "Temperature: {temp}" }
+        }
 
     ))
 }
@@ -72,11 +85,6 @@ fn init() -> Option<Box<dyn SerialPort>> {
         }
     }
 
-    // let dport = if let Some(port) = dport {
-    //     port
-    // } else {
-    //     return None;
-    // };
     let dport = dport?;
     let port = serialport::new(dport.port_name, 115200)
         .timeout(Duration::from_millis(5))
