@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 use postcard::{from_bytes_cobs, to_slice_cobs};
 use serde::{Deserialize, Serialize};
 use serialport::SerialPort;
-use std::io;
 use std::time::Duration;
 
 #[derive(Debug, Serialize)]
@@ -21,21 +20,6 @@ enum Response {
 #[derive(Debug)]
 pub enum USBError {
     BadCommand,
-}
-impl TryFrom<&str> for Command {
-    type Error = USBError;
-
-    fn try_from(s: &str) -> Result<Command, USBError> {
-        match s {
-            "on" => Ok(Command::On),
-            "off" => Ok(Command::Off),
-            "temp" => Ok(Command::Temperature),
-            _ => {
-                println!("Unknown command");
-                Err(USBError::BadCommand)
-            }
-        }
-    }
 }
 
 fn main() {
@@ -94,7 +78,7 @@ fn init() -> Option<Box<dyn SerialPort>> {
     //     return None;
     // };
     let dport = dport?;
-    let mut port = serialport::new(dport.port_name, 115200)
+    let port = serialport::new(dport.port_name, 115200)
         .timeout(Duration::from_millis(5))
         .open()
         .map_err(drop)
