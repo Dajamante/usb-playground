@@ -80,18 +80,35 @@ impl Board {
             self.port.write_all(data).unwrap();
         }
 
-        if let Ok(count) = self.port.read(&mut buf) {
-            if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
-                match response {
-                    Response::Temperature(t) => Ok(t),
-                    _ => Err(()),
-                }
-            } else {
-                Err(())
-            }
-        } else {
-            Err(())
-        }
+        let temp = self
+            .port
+            .read(&mut buf)
+            .map_err(drop)
+            .and_then(|count| from_bytes_cobs::<Response>(&mut buf[..count]).map_err(drop))
+            .and_then(|r| match r {
+                Response::Temperature(t) => Ok(t),
+                _ => Err(()),
+            });
+        // .map(|r| match r {
+        //     Response::Temperature(t) => Ok(t),
+        //     _ => Err(()),
+        // })
+        //.unwrap()
+        //.map_err(drop);
+
+        // if let Ok(count) = self.port.read(&mut buf) {
+        //     if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
+        //         match response {
+        //             Response::Temperature(t) => Ok(t),
+        //             _ => Err(()),
+        //         }
+        //     } else {
+        //         Err(())
+        //     }
+        // } else {
+        //     Err(())
+        // }
+        temp
     }
 }
 
