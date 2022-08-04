@@ -2,13 +2,19 @@ use dioxus::prelude::*;
 use postcard::{from_bytes_cobs, to_slice_cobs};
 use serde::{Deserialize, Serialize};
 use serialport::SerialPort;
+use std::io::Error as IoError;
 use std::time::Duration;
-
 #[derive(Debug, Serialize)]
 enum Command {
     On,
     Off,
     Temperature,
+}
+#[derive(Debug)]
+enum AppError {
+    Nack,
+    Postcard(postcard::Error),
+    IoError,
 }
 
 #[derive(Debug, Deserialize)]
@@ -17,10 +23,7 @@ enum Response {
     Nack,
     Temperature(f32),
 }
-#[derive(Debug)]
-pub enum USBError {
-    BadCommand,
-}
+
 pub struct Board {
     port: Box<dyn SerialPort>,
 }
@@ -51,64 +54,44 @@ impl Board {
         Some(Board { port })
     }
 
-    fn toggle_light(&mut self, command: Command) -> Result<(), ()> {
+    fn toggle_light(&mut self, command: Command) -> Result<Response, AppError> {
         let mut buf = [0; 64];
 
         if let Ok(data) = to_slice_cobs(&command, &mut buf) {
-            self.port.write_all(data).unwrap();
+            self.port
+                .write_all(data)
+                .map_err(|_err| AppError::IoError)?
         }
-
-        if let Ok(count) = self.port.read(&mut buf) {
-            if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
-                match response {
-                    Response::Ack => Ok(()),
-                    _ => Err(()),
-                }
-            } else {
-                Err(())
-            }
-        } else {
-            Err(())
-        }
+        self.port
+            .read(&mut buf)
+            .map_err(|_err| AppError::IoError)
+            .and_then(|count| {
+                from_bytes_cobs::<Response>(&mut buf[..count]).map_err(AppError::Postcard)
+            })
+            .and_then(|r| match r {
+                Response::Ack => Ok(Response::Ack),
+                _ => Err(AppError::Nack),
+            })
     }
-    fn get_temp(&mut self) -> Result<f32, ()> {
+    fn get_temp(&mut self) -> Result<f32, AppError> {
         let mut buf = [0; 64];
 
         // That returns the number of bytes
         let command = Command::Temperature;
         if let Ok(data) = to_slice_cobs(&command, &mut buf) {
-            self.port.write_all(data).unwrap();
+            self.port.write_all(data).map_err(|_| AppError::IoError)?
         }
 
-        let temp = self
-            .port
+        self.port
             .read(&mut buf)
-            .map_err(drop)
-            .and_then(|count| from_bytes_cobs::<Response>(&mut buf[..count]).map_err(drop))
+            .map_err(|_| AppError::IoError)
+            .and_then(|count| {
+                from_bytes_cobs::<Response>(&mut buf[..count]).map_err(AppError::Postcard)
+            })
             .and_then(|r| match r {
                 Response::Temperature(t) => Ok(t),
-                _ => Err(()),
-            });
-        // .map(|r| match r {
-        //     Response::Temperature(t) => Ok(t),
-        //     _ => Err(()),
-        // })
-        //.unwrap()
-        //.map_err(drop);
-
-        // if let Ok(count) = self.port.read(&mut buf) {
-        //     if let Ok(response) = from_bytes_cobs::<Response>(&mut buf[..count]) {
-        //         match response {
-        //             Response::Temperature(t) => Ok(t),
-        //             _ => Err(()),
-        //         }
-        //     } else {
-        //         Err(())
-        //     }
-        // } else {
-        //     Err(())
-        // }
-        temp
+                _ => Err(AppError::Nack),
+            })
     }
 }
 
