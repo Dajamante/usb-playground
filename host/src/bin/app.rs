@@ -15,6 +15,7 @@ enum AppError {
     Nack,
     Postcard(postcard::Error),
     IoError,
+    BadBoard,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,7 +30,7 @@ pub struct Board {
 }
 
 impl Board {
-    fn new() -> Option<Self> {
+    fn new() -> Result<Self, AppError> {
         let mut dport = None;
         for port in serialport::available_ports().unwrap() {
             if let serialport::SerialPortType::UsbPort(serialport::UsbPortInfo {
@@ -45,13 +46,12 @@ impl Board {
             }
         }
 
-        let dport = dport?;
-        let port = serialport::new(dport.port_name, 115200)
+        let dport = dport.ok_or(AppError::BadBoard)?;
+        serialport::new(dport.port_name, 115200)
             .timeout(Duration::from_millis(5))
             .open()
-            .map_err(drop)
-            .ok()?;
-        Some(Board { port })
+            .map_err(|_| AppError::BadBoard)
+            .map(|port| Board { port })
     }
 
     fn toggle_light(&mut self, command: Command) -> Result<Response, AppError> {
