@@ -47,9 +47,9 @@ fn main() -> ! {
         // fun fact:
         // writing `ls -l /dev/serial/by-id` will give the tty port and the identification
         // usb-AllTheTears_FromTheDust_InOurEyes-if00 -> ../../ttyACM1
-        .manufacturer("AllTheTears")
-        .product("FromTheDust")
-        .serial_number("InOurEyes")
+        .manufacturer("black")
+        .product("sabbath")
+        .serial_number("paranoid")
         .device_class(USB_CLASS_CDC)
         .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();

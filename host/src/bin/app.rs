@@ -16,6 +16,8 @@ enum AppError {
     Postcard(postcard::Error),
     IoError,
     BadBoard,
+    BadPort,
+    WTF,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,28 +32,8 @@ pub struct Board {
 }
 
 impl Board {
-    fn new() -> Result<Self, AppError> {
-        let mut dport = None;
-        for port in serialport::available_ports().unwrap() {
-            if let serialport::SerialPortType::UsbPort(serialport::UsbPortInfo {
-                serial_number: Some(sn),
-                ..
-            }) = &port.port_type
-            {
-                // Serial number must be same as in the firmware
-                if sn.as_str() == "InOurEyes" {
-                    dport = Some(port.clone());
-                    break;
-                }
-            }
-        }
-
-        let dport = dport.ok_or(AppError::BadBoard)?;
-        serialport::new(dport.port_name, 115200)
-            .timeout(Duration::from_millis(5))
-            .open()
-            .map_err(|_| AppError::BadBoard)
-            .map(|port| Board { port })
+    fn new(port: Box<dyn SerialPort>) -> Self {
+        Board { port }
     }
 
     fn toggle_light(&mut self, command: Command) -> Result<Response, AppError> {
@@ -95,6 +77,32 @@ impl Board {
     }
 }
 
+fn init_port() -> Option<Box<dyn serialport::SerialPort>> {
+    let mut dport = None;
+    for port in serialport::available_ports().unwrap() {
+        if let serialport::SerialPortType::UsbPort(serialport::UsbPortInfo {
+            serial_number: Some(sn),
+            ..
+        }) = &port.port_type
+        {
+            println!("Did you find me ? {:?}",sn);
+
+            // Serial number must be same as in the firmware
+            if sn.as_str().to_lowercase() == "paranoid" {
+                dport = Some(port.clone());
+                break;
+            }
+        }
+    }
+    println!("Did you find me ? {:?}",dport);
+    let dport = dport?;
+    let port = serialport::new(dport.port_name,115200)
+    .timeout(Duration::from_millis(5))
+    .open().ok()?;
+
+    Some(port)
+}
+
 fn main() {
     dioxus::desktop::launch(app);
 }
@@ -103,8 +111,11 @@ fn main() {
 fn app(cx: Scope) -> Element {
     // ::new är en FnOnce
     // let mut board = use_ref(&cx, Board::new);
-    let board = use_ref(&cx, || Board::new().unwrap());
-    // smart pointer Rc<T>
+    let port  = init_port().expect("port not found");
+
+    let board = use_ref(&cx, || Board::new(port));
+
+            // smart pointer Rc<T>
     //let mut temp = **use_state(&cx, || board.write().get_temp().unwrap());
 
     let temp = use_state(&cx, || board.write().get_temp().unwrap());
@@ -136,4 +147,5 @@ fn app(cx: Scope) -> Element {
             p  { "Temperature: {temp}" }
         }
     ))
+    
 }
