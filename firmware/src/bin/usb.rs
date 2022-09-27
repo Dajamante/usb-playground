@@ -1,44 +1,24 @@
 #![no_std]
 #![no_main]
 
+use core::fmt::write;
+
 use usb as _; // global logger + panicking-behavior + memory layout
 
 use cortex_m_rt::entry;
 use defmt::info;
 use nrf52840_hal::{
     clocks::Clocks,
-    gpio::Level,
-    prelude::OutputPin,
-    temp::Temp,
     usbd::{UsbPeripheral, Usbd},
 };
-use postcard::{from_bytes_cobs, to_slice_cobs};
-use serde::{Deserialize, Serialize};
 use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
-#[derive(Debug, defmt::Format, Deserialize)]
-enum Command {
-    On,
-    Off,
-    Temperature,
-}
-
-#[derive(Debug, Serialize)]
-enum Response {
-    Ack,
-    Nack,
-    Temperature(f32),
-}
 
 #[entry]
 fn main() -> ! {
     let periph = nrf52840_hal::pac::Peripherals::take().unwrap();
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
-    let port0 = nrf52840_hal::gpio::p0::Parts::new(periph.P0);
-    let mut led = port0.p0_13.into_push_pull_output(Level::High).degrade();
-
-    let mut temp_sensor = Temp::new(periph.TEMP);
 
     let usb_bus = Usbd::new(UsbPeripheral::new(periph.USBD, &clocks));
     let mut serial = SerialPort::new(&usb_bus);
@@ -47,42 +27,31 @@ fn main() -> ! {
         // fun fact:
         // writing `ls -l /dev/serial/by-id` will give the tty port and the identification
         // usb-AllTheTears_FromTheDust_InOurEyes-if00 -> ../../ttyACM1
-        .manufacturer("AllTheTears")
-        .product("FromTheDust")
-        .serial_number("InOurEyes")
+        .manufacturer("black")
+        .product("sabbath")
+        .serial_number("warpigs")
         .device_class(USB_CLASS_CDC)
         .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();
-
+    let mut buf_read = [0_u8; 16];
+    // Early return if there is no data to manage.
     loop {
         if !usb_dev.poll(&mut [&mut serial]) {
             continue;
         }
-
-        let mut buf = [0u8; 64];
-
-        match serial.read(&mut buf) {
+        match serial.read(&mut buf_read) {
+            // Ok(#number of read bytes)
             Ok(count) if count > 0 => {
-                if let Ok(command) = from_bytes_cobs(&mut buf) {
-                    info!("received {}", command);
-                    let mut response = Response::Nack;
-                    match command {
-                        Command::On => {
-                            response = Response::Ack;
-                            led.set_low();
-                        }
-                        Command::Off => {
-                            response = Response::Ack;
-                            led.set_high();
-                        }
-                        Command::Temperature => {
-                            let temp: f32 = temp_sensor.measure().to_num();
-                            defmt::info!("processor temp is {}°C", temp);
-                            response = Response::Temperature(temp);
-                        }
+                for c in buf_read[..count].iter_mut() {
+                    if let Ok(c) = core::str::from_utf8(&[*c]) {
+                        info!("{}", c);
                     }
-                    let data = to_slice_cobs(&response, &mut buf).unwrap();
-                    serial.write(data).unwrap();
+
+                    if 0x61 <= *c && *c <= 0x7a {
+                        //fancy way to do *c -= 32
+                        *c &= !0x20;
+                        let _ = serial.write(&[*c]);
+                    }
                 }
             }
             _ => {}
