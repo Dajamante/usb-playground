@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 use postcard::{from_bytes_cobs, to_slice_cobs};
 use serde::{Deserialize, Serialize};
 use serialport::SerialPort;
-use std::io::Error as IoError;
 use std::time::Duration;
 #[derive(Debug, Serialize)]
 enum Command {
@@ -39,7 +38,8 @@ impl Board {
             }) = &port.port_type
             {
                 // Serial number must be same as in the firmware
-                if sn.as_str() == "InOurEyes" {
+                println!("Did you find me? : {}", &sn);
+                if sn.as_str() == "warpigs" {
                     dport = Some(port.clone());
                     break;
                 }
