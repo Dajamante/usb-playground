@@ -26,13 +26,16 @@ The example is taken from USB serial example in [`nrf-hal`](https://github.com/s
 DEFMT_LOG="info"
 ```
 
-### Phase 2:
+### Phase 2: on_off_temp
 
-Works with a host program
-1. Do `cd host` and `cargo run --bin send`
-2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`
+This part works with a host (the computer). Type instructions at the terminal.
+1. Go in the host folder `cd host` 
+2. Run `cargo run --bin send`
+3. Go to `cd firmware` and then run `DEFMT_LOG=info cargo rb usb`
 
-The host is sending a serialized command to the firmware.
+The host is sending a serialized command to the firmware, with [Postcard](https://docs.rs/postcard/latest/postcard/).
+
+❗The [serial busy error](https://github.com/serialport/serialport-rs/blob/6542d11235532ec78332e1e6b4986e73b8d55b11/src/lib.rs#L76)(`Error: Error { kind: Unknown, description: "Device or resource busy" }`) is an indication that the resource might still be used by coolterm.
 
 
 
