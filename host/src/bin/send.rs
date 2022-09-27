@@ -16,27 +16,33 @@ enum Response {
     Nack,
     Temperature(f32),
 }
+
+// Bear with me 🐻.
 #[derive(Debug)]
-pub enum USBError {
+pub enum MyUSBError {
     BadCommand,
+    // Error: Error { kind: Unknown, description: "Device or resource busy" }
+    // that's a serialError https://github.com/serialport/serialport-rs/blob/6542d11235532ec78332e1e6b4986e73b8d55b11/src/lib.rs#L76
+    // Meaning the board is used in coolterm for example!
+    SerialDevideBusy(serialport::Error),
 }
 impl TryFrom<&str> for Command {
-    type Error = USBError;
+    type Error = MyUSBError;
 
-    fn try_from(s: &str) -> Result<Command, USBError> {
+    fn try_from(s: &str) -> Result<Command, MyUSBError> {
         match s {
             "on" => Ok(Command::On),
             "off" => Ok(Command::Off),
             "temp" => Ok(Command::Temperature),
             _ => {
                 println!("Unknown command");
-                Err(USBError::BadCommand)
+                Err(MyUSBError::BadCommand)
             }
         }
     }
 }
 
-fn main() -> Result<(), ()> {
+fn main() -> Result<(), MyUSBError> {
     let mut dport = None;
 
     for port in serialport::available_ports().unwrap() {
@@ -45,9 +51,11 @@ fn main() -> Result<(), ()> {
             ..
         }) = &port.port_type
         {
+            println!("sn {}", &sn);
             // Serial number must be same as in the firmware
-            if sn.as_str() == "InOurEyes" {
+            if sn.as_str() == "warpigs" {
                 dport = Some(port.clone());
+                println!("assigned port.");
                 break;
             }
         }
@@ -60,18 +68,21 @@ fn main() -> Result<(), ()> {
         return Ok(());
     };
 
+    println!("before port box dyn");
     let mut port = serialport::new(dport.port_name, 115200)
         .timeout(Duration::from_millis(5))
         .open()
-        .map_err(drop)?;
+        .map_err(|e| MyUSBError::SerialDevideBusy(e))?;
+    println!("after port box dyn");
 
     let mut buf = [0; 64];
+    // Nothing fancy here, just trimming the input
     println!("Possible instructions: \n on \n off \n temp");
 
     loop {
         let mut input = String::new();
-        // That returns the number of bytes
-        if let Ok(_) = io::stdin().read_line(&mut input) {
+        // `if let Ok(_)` is redundant pattern matching. Inside the `Ok()` we return the number of bytes
+        if io::stdin().read_line(&mut input).is_ok() {
             match Command::try_from(input.trim()) {
                 Ok(command) => {
                     println!("Command::{:?}", command);
