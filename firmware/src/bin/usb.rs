@@ -54,7 +54,8 @@ fn main() -> ! {
                     }
                 }
             }
-            _ => {}
+            Err(e) => defmt::error!("USB error: {:?}", e),
+            Ok(_) => {}
         }
     }
 }
