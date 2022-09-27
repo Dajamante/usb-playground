@@ -2,17 +2,18 @@
 
 ## Run
 
-### Phase 1:
+### Phase 1: coolterm
 
-Works with coolterm.
-1. start coolterm
-2. both USB and probe must be connected with nRF52840
+Works with coolterm and echoes back `a .. z` to capital letters
+1. start coolterm, identify your usb.
+    Tips: run `ls -l /dev/serial/by-id` will return the port of the `usb-SEGGER_J-Link`. You need the other one (Usually `ACMx` on Linux, `x=0,1,2..`).
+2. both USB and Seger probe must be connected with nRF52840!
 
-3. `DEFMT_LOG=info cargo rb usb`*
-4. on coolterm, find right port (should be `/dev/ttyACM{0/1/2}` on Linux)
-5. type letters in coolterm
+3. Run `DEFMT_LOG=info cargo rb usb` in the firmware folder.
+4. On coolterm, find right port (should be `/dev/ttyACM{0/1/2}` as per point 1. on Linux)
+5. Type letters in coolterm, they should be echoed back in capital letters.
 
-PS: Words of the song are from Kelly Clarkson "Born to die".
+The example is taken from USB serial example in [`nrf-hal`](https://github.com/stm32-rs/stm32f1xx-hal/blob/master/examples/usb_serial.rs).
 
 ![](example.png)
 
