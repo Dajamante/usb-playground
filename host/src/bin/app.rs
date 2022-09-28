@@ -107,23 +107,18 @@ fn main() {
 
 // App runs every time it is rendered
 fn app(cx: Scope) -> Element {
-    // ::new är en FnOnce
-    // let mut board = use_ref(&cx, Board::new);
     let board = use_ref(&cx, || Board::new().ok());
-    // smart pointer Rc<T>
-    //let mut temp = **use_state(&cx, || board.write().get_temp().unwrap());
-
-    let temp: &UseState<f32> = use_state(&cx, || -> f32 {
-        board
-            .write()
-            .as_mut()
-            .expect("No temp as no board was returned")
-            .get_temp()
-            .unwrap()
-    });
-    let is_on: &UseState<bool> = use_state(&cx, || false);
 
     if board.write().is_some() {
+        let temp: &UseState<f32> = use_state(&cx, || -> f32 {
+            board
+                .write()
+                .as_mut()
+                .expect("No temp as no board was returned")
+                .get_temp()
+                .unwrap()
+        });
+        let is_on: &UseState<bool> = use_state(&cx, || false);
         cx.render(rsx! (
             div {
                 background_color: "orange",
@@ -131,7 +126,11 @@ fn app(cx: Scope) -> Element {
                 p     {"Click on the buttons to have information from the board."}
             },
             button {
-                onclick: move |_| { temp.set(board.write().as_mut().unwrap().get_temp().unwrap()); },
+                onclick: move |_| {
+                    if let Ok(value) = board.write().as_mut().unwrap().get_temp(){
+                        temp.set(value);
+                    }
+                },
                 "Temperature!"
             },
             button {
