@@ -39,12 +39,13 @@ The host is sending a serialized command to the firmware, with [Postcard](https:
 
 
 
-### Phase 3: on/off/temp
+### Phase 3: dioxus
 
-Works with a host program, turns on the light on and off and gives temperature
-1. Do `cd host` and `cargo run --bin send`
-2. In the `cd firmware` and then `DEFMT_LOG=info cargo rb usb`
-3. Write `on`, `off` or `temp` to the `host` to see the bord turning on the led, or turning off the led, or giving the temperature.
+That is WIP!
 
-Error handling is left as an exercise ... to myself for later.
+Works with a host program, turns on the light on and off and gives temperature with an GUI made (poorly) with Dioxus.
+1. Host is in its folder: `cd host` and `cargo run --bin app`
+2. The board: `cd firmware` and then `DEFMT_LOG=info cargo rb usb`
+3. Click `on`, `off` or `temp` on the window to see the bord turning on the led, or turning off the led, or giving the temperature.
 
+Error handling is still left as an exercise...
