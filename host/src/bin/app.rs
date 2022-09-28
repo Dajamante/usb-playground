@@ -13,8 +13,14 @@ enum Command {
 enum AppError {
     Nack,
     Postcard(postcard::Error),
+    DeviceError(serialport::Error),
+    NoDevice,
     IoError,
-    BadBoard,
+}
+
+#[derive(Props, PartialEq)]
+struct AppProps {
+    board_present: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,7 +44,6 @@ impl Board {
             }) = &port.port_type
             {
                 // Serial number must be same as in the firmware
-                println!("Did you find me? : {}", &sn);
                 if sn.as_str() == "warpigs" {
                     dport = Some(port.clone());
                     break;
@@ -46,11 +51,11 @@ impl Board {
             }
         }
 
-        let dport = dport.ok_or(AppError::BadBoard)?;
+        let dport = dport.ok_or(AppError::NoDevice)?;
         serialport::new(dport.port_name, 115200)
             .timeout(Duration::from_millis(5))
             .open()
-            .map_err(|_| AppError::BadBoard)
+            .map_err(AppError::DeviceError)
             .map(|port| Board { port })
     }
 
@@ -99,17 +104,18 @@ fn main() {
     dioxus::desktop::launch(app);
 }
 
-// App körs varje gång den renderas om
+// App runs every time it is rendered
 fn app(cx: Scope) -> Element {
     // ::new är en FnOnce
     // let mut board = use_ref(&cx, Board::new);
-    let board = use_ref(&cx, || Board::new().unwrap());
+    let board = Some(use_ref(&cx, || Board::new().unwrap()));
     // smart pointer Rc<T>
     //let mut temp = **use_state(&cx, || board.write().get_temp().unwrap());
 
-    let temp = use_state(&cx, || board.write().get_temp().unwrap());
+    let temp = use_state(&cx, || board.expect("no board").write().get_temp().unwrap());
     let is_on = use_state(&cx, || false);
-    cx.render(rsx! (
+    match board {
+        Some(board) => cx.render(rsx! (
         div {
             background_color: "orange",
             h1    {"Interfacing sensor with USB."}
@@ -134,6 +140,12 @@ fn app(cx: Scope) -> Element {
         },
         div {
             p  { "Temperature: {temp}" }
-        }
-    ))
+        })),
+        None => cx.render(rsx! {
+            div {
+                background_color: "blue",
+                h1    {"No board."}
+            }
+        }),
+    }
 }

@@ -17,26 +17,28 @@ enum Response {
     Temperature(f32),
 }
 #[derive(Debug)]
-pub enum USBError {
+pub enum MyUSBError {
     BadCommand,
+    NoDevice,
+    SerialDeviceBusy(serialport::Error),
 }
 impl TryFrom<&str> for Command {
-    type Error = USBError;
+    type Error = MyUSBError;
 
-    fn try_from(s: &str) -> Result<Command, USBError> {
+    fn try_from(s: &str) -> Result<Command, MyUSBError> {
         match s {
             "on" => Ok(Command::On),
             "off" => Ok(Command::Off),
             "temp" => Ok(Command::Temperature),
             _ => {
                 println!("Unknown command");
-                Err(USBError::BadCommand)
+                Err(MyUSBError::BadCommand)
             }
         }
     }
 }
 
-fn main() -> Result<(), ()> {
+fn main() -> Result<(), MyUSBError> {
     let mut dport = None;
 
     for port in serialport::available_ports().unwrap() {
@@ -57,13 +59,13 @@ fn main() -> Result<(), ()> {
         port
     } else {
         eprintln!("Error: No USB connected!");
-        return Ok(());
+        return Err(MyUSBError::NoDevice);
     };
 
     let mut port = serialport::new(dport.port_name, 115200)
         .timeout(Duration::from_millis(5))
         .open()
-        .map_err(drop)?;
+        .map_err(MyUSBError::SerialDeviceBusy)?;
 
     let mut buf = [0; 64];
     println!("Possible instructions: \n on \n off \n temp");
@@ -71,7 +73,7 @@ fn main() -> Result<(), ()> {
     loop {
         let mut input = String::new();
         // That returns the number of bytes
-        if let Ok(_) = io::stdin().read_line(&mut input) {
+        if io::stdin().read_line(&mut input).is_ok() {
             match Command::try_from(input.trim()) {
                 Ok(command) => {
                     println!("Command::{:?}", command);
