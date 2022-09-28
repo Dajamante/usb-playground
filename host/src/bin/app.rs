@@ -78,6 +78,7 @@ impl Board {
                 _ => Err(AppError::Nack),
             })
     }
+
     fn get_temp(&mut self) -> Result<f32, AppError> {
         let mut buf = [0; 64];
 
@@ -108,44 +109,54 @@ fn main() {
 fn app(cx: Scope) -> Element {
     // ::new är en FnOnce
     // let mut board = use_ref(&cx, Board::new);
-    let board = Some(use_ref(&cx, || Board::new().unwrap()));
+    let board = use_ref(&cx, || Board::new().ok());
     // smart pointer Rc<T>
     //let mut temp = **use_state(&cx, || board.write().get_temp().unwrap());
 
-    let temp = use_state(&cx, || board.expect("no board").write().get_temp().unwrap());
-    let is_on = use_state(&cx, || false);
-    match board {
-        Some(board) => cx.render(rsx! (
-        div {
-            background_color: "orange",
-            h1    {"Interfacing sensor with USB."}
-            p     {"Click on the buttons to have information from the board."}
-        },
-        button {
-            onclick: move |_| { temp.set(board.write().get_temp().unwrap()); },
-            "Temperature!"
-        },
-        button {
-            onclick: move |_| {
-                    if **is_on {
-                        is_on.set(false);
-                        board.write().toggle_light(Command::Off).unwrap();
-                    } else {
-                        is_on.set(true);
-                        board.write().toggle_light(Command::On).unwrap();
-                    }
+    let temp: &UseState<f32> = use_state(&cx, || -> f32 {
+        board
+            .write()
+            .as_mut()
+            .expect("No temp as no board was returned")
+            .get_temp()
+            .unwrap()
+    });
+    let is_on: &UseState<bool> = use_state(&cx, || false);
 
-                },
-            "Toggle light."
-        },
-        div {
-            p  { "Temperature: {temp}" }
-        })),
-        None => cx.render(rsx! {
+    if board.write().is_some() {
+        cx.render(rsx! (
+            div {
+                background_color: "orange",
+                h1    {"Interfacing sensor with USB."}
+                p     {"Click on the buttons to have information from the board."}
+            },
+            button {
+                onclick: move |_| { temp.set(board.write().as_mut().unwrap().get_temp().unwrap()); },
+                "Temperature!"
+            },
+            button {
+                onclick: move |_| {
+                        if **is_on {
+                            is_on.set(false);
+                            board.write().as_mut().unwrap().toggle_light(Command::Off).unwrap();
+                        } else {
+                            is_on.set(true);
+                            board.write().as_mut().unwrap().toggle_light(Command::On).unwrap();
+                        }
+
+                    },
+                "Toggle light."
+            },
+            div {
+                p  { "Temperature: {temp}" }
+            }
+        ))
+    } else {
+        cx.render(rsx! {
             div {
                 background_color: "blue",
                 h1    {"No board."}
             }
-        }),
+        })
     }
 }
